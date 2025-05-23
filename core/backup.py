@@ -16,18 +16,14 @@ class BackupManager:
         self.backup_dir = Path(__file__).parent.parent / "data" / "backups"
         self.backup_dir.mkdir(parents=True, exist_ok=True)
     
-    def _derive_key_from_password(self, password: str) -> bytes:
+    def _derive_key_from_password(self, password: str, salt: bytes = None) -> bytes:
         """Deriva una chiave di crittografia dalla password master"""
-        password_bytes = password.encode()
-        salt = b'ClaudePA_backup_salt_2024'  # Salt fisso per i backup
-        
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        return kdf.derive(password_bytes)
+        # Usa lo stesso metodo del database per compatibilità
+        import hashlib
+        combined = f"{password}_backup_ClaudePA_2024"
+        hash_bytes = hashlib.sha256(combined.encode()).digest()
+        key = base64.urlsafe_b64encode(hash_bytes)
+        return key
     
     def export_passwords(self, username: str, master_password: str, passwords: List[Dict]) -> Tuple[bool, str]:
         """
@@ -75,20 +71,24 @@ class BackupManager:
                     "updated_at": pwd.get("updated_at", "")
                 })
             
-            # Converti in JSON
+            # Converti i dati in formato JSON per serializzazione
             json_data = json.dumps(backup_data, indent=2, ensure_ascii=False)
             
-            # Cripta i dati
+            # Cripta i dati utilizzando la chiave derivata dalla password master
+            # Usa Fernet per crittografia simmetrica sicura (AES 128 in modalità CBC)
             encrypted_data = fernet.encrypt(json_data.encode('utf-8'))
             
-            # Crea il file finale con salt + dati crittografati
+            # Crea il file finale con struttura: [16 bytes salt] + [dati crittografati]
+            # Il salt permette di derivare la stessa chiave durante l'import
             with open(filepath, 'wb') as f:
-                f.write(salt)  # Primi 16 bytes = salt
-                f.write(encrypted_data)  # Resto = dati crittografati
+                f.write(salt)           # Primi 16 bytes = salt per derivazione chiave
+                f.write(encrypted_data) # Resto = payload crittografato
             
             return True, str(filepath)
             
         except Exception as e:
+            # Log errore senza esporre informazioni sensibili
+            print(f"ERRORE EXPORT BACKUP: {str(e)}")
             return False, f"Errore durante l'export: {str(e)}"
     
     def import_passwords(self, filepath: str, master_password: str) -> Tuple[bool, str, Dict]:

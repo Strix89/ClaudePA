@@ -103,46 +103,23 @@ class LoginView(ThemedFrame):
         self.password_entry.bind("<Return>", lambda e: self._handle_login())
 
     def _handle_login(self):
-        """Gestisce il processo di login"""
+        """Gestisce il login dell'utente"""
         username = self.username_entry.get().strip()
         password = self.password_entry.get()
         
         if not username or not password:
-            show_message(self, "Errore", "Inserisci nome utente e password", "error")
+            from core.components import show_message
+            show_message(self, "Errore", "Inserisci username e password", "error")
             return
         
-        if not self.database:
-            show_message(self, "Errore", "Database non disponibile", "error")
-            return
+        # Prova il login
+        success, message = self.database.login(username, password)
         
-        try:
-            # Debug: verifica stato file utente
-            debug_info = self.database.debug_user_file(username)
-            print(f"Debug login - {debug_info}")
-            
-            result = self.database.login(username, password)
-            
-            # Verifica che il risultato sia una tupla
-            if result is None:
-                show_message(self, "Errore di Login", "Errore interno del database", "error")
-                return
-            
-            if not isinstance(result, tuple) or len(result) != 2:
-                show_message(self, "Errore di Login", "Risposta del database non valida", "error")
-                return
-            
-            success, message = result
-            
-            if success:
-                print(f"Login riuscito nel LoginView per: {username}")
-                self.on_login_success()
-            else:
-                print(f"Login fallito per {username}: {message}")
-                show_message(self, "Errore di Login", message, "error")
-                
-        except Exception as e:
-            print(f"Errore durante il login: {e}")
-            show_message(self, "Errore di Login", f"Errore durante il login: {str(e)}", "error")
+        if success:
+            self.on_login_success()
+        else:
+            from core.components import show_message
+            show_message(self, "Errore Login", message, "error")
 
     def clear_form(self):
         """Pulisce il form"""

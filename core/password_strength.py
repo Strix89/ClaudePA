@@ -26,7 +26,12 @@ class PasswordValidator:
     """Validatore di password basato su standard NIST/OWASP"""
     
     def __init__(self):
-        # Lista di password comuni da evitare (top 100)
+        """
+        Inizializza il validatore con una lista delle password più comuni
+        Questa lista viene utilizzata per penalizzare password facilmente indovinabili
+        """
+        # Lista delle 100 password più comuni da evitare assolutamente
+        # Basata su dataset di violazioni di sicurezza reali
         self.common_passwords = {
             "password", "123456", "123456789", "12345", "qwerty", "abc123",
             "password123", "admin", "letmein", "welcome", "monkey", "1234567890",
@@ -38,20 +43,34 @@ class PasswordValidator:
         }
     
     def analyze_password(self, password: str) -> PasswordAnalysis:
-        """Analizza la forza di una password"""
+        """
+        Analizza la forza di una password usando standard di sicurezza moderni
+        
+        Args:
+            password: La password da analizzare
+            
+        Returns:
+            PasswordAnalysis: Oggetto contenente tutti i risultati dell'analisi
+        """
+        # Gestisce il caso di password vuota
         if not password:
             return PasswordAnalysis(
                 strength=PasswordStrength.VERY_WEAK,
                 score=0,
                 suggestions=["Inserisci una password"],
                 criteria_met={},
-                color="#F44336"
+                color="#F44336"  # Rosso per indicare pericolo
             )
         
+        # Esegue tutti i controlli di sicurezza
         criteria = self._check_criteria(password)
+        # Calcola un punteggio da 0 a 100 basato sui criteri soddisfatti
         score = self._calculate_score(password, criteria)
+        # Determina il livello di forza generale
         strength = self._determine_strength(score)
+        # Genera suggerimenti personalizzati per migliorare la password
         suggestions = self._generate_suggestions(criteria, password)
+        # Assegna un colore appropriato per la visualizzazione
         color = self._get_color(strength)
         
         return PasswordAnalysis(
@@ -63,35 +82,48 @@ class PasswordValidator:
         )
     
     def _check_criteria(self, password: str) -> Dict[str, bool]:
-        """Verifica i criteri di sicurezza"""
+        """
+        Verifica tutti i criteri di sicurezza per una password
+        Implementa le linee guida NIST e OWASP per la sicurezza delle password
+        """
         return {
-            "length_8": len(password) >= 8,
-            "length_12": len(password) >= 12,
-            "length_16": len(password) >= 16,
-            "uppercase": bool(re.search(r'[A-Z]', password)),
-            "lowercase": bool(re.search(r'[a-z]', password)),
-            "numbers": bool(re.search(r'\d', password)),
-            "special_chars": bool(re.search(r'[!@#$%^&*(),.?":{}|<>]', password)),
-            "no_common": password.lower() not in self.common_passwords,
-            "no_repeated": not self._has_repeated_chars(password),
-            "no_sequential": not self._has_sequential_chars(password),
-            "mixed_case": self._has_mixed_case(password),
-            "entropy": self._calculate_entropy(password) > 50
+            # Criteri di lunghezza progressivi
+            "length_8": len(password) >= 8,    # Minimo assoluto
+            "length_12": len(password) >= 12,  # Raccomandato
+            "length_16": len(password) >= 16,  # Ottimale per sicurezza massima
+            
+            # Varietà di caratteri (aumenta lo spazio delle possibilità)
+            "uppercase": bool(re.search(r'[A-Z]', password)),           # Lettere maiuscole
+            "lowercase": bool(re.search(r'[a-z]', password)),           # Lettere minuscole  
+            "numbers": bool(re.search(r'\d', password)),                # Cifre numeriche
+            "special_chars": bool(re.search(r'[!@#$%^&*(),.?":{}|<>]', password)),  # Simboli
+            
+            # Controlli avanzati per evitare pattern prevedibili
+            "no_common": password.lower() not in self.common_passwords,    # Non è una password comune
+            "no_repeated": not self._has_repeated_chars(password),          # Evita ripetizioni eccessive
+            "no_sequential": not self._has_sequential_chars(password),      # Evita sequenze prevedibili
+            "mixed_case": self._has_mixed_case(password),                   # Maiuscole e minuscole mischiate
+            "entropy": self._calculate_entropy(password) > 50              # Entropia sufficiente
         }
     
     def _calculate_score(self, password: str, criteria: Dict[str, bool]) -> int:
-        """Calcola il punteggio della password (0-100)"""
+        """
+        Calcola un punteggio da 0 a 100 basato sui criteri di sicurezza soddisfatti
+        Implementa un sistema di punteggi ponderato che privilegia diversità e lunghezza
+        """
         score = 0
         
-        # Lunghezza (max 30 punti)
+        # Punteggio per lunghezza (massimo 30 punti)
+        # La lunghezza è il fattore più importante per la sicurezza
         if criteria["length_16"]:
-            score += 30
+            score += 30  # Lunghezza eccellente
         elif criteria["length_12"]:
-            score += 20
+            score += 20  # Lunghezza buona
         elif criteria["length_8"]:
-            score += 10
+            score += 10  # Lunghezza minima accettabile
         
-        # Varietà caratteri (max 40 punti)
+        # Punteggio per varietà di caratteri (massimo 40 punti)
+        # Ogni tipo di carattere aumenta esponenzialmente lo spazio delle possibilità
         if criteria["uppercase"]:
             score += 10
         if criteria["lowercase"]:
@@ -101,39 +133,47 @@ class PasswordValidator:
         if criteria["special_chars"]:
             score += 10
         
-        # Criteri avanzati (max 30 punti)
+        # Punteggio per criteri avanzati (massimo 30 punti)
+        # Questi criteri prevengono attacchi basati su pattern comuni
         if criteria["no_common"]:
-            score += 10
+            score += 10  # Molto importante: evita password da dizionario
         if criteria["no_repeated"]:
-            score += 5
+            score += 5   # Evita pattern ripetitivi
         if criteria["no_sequential"]:
-            score += 5
+            score += 5   # Evita sequenze prevedibili
         if criteria["mixed_case"]:
-            score += 5
+            score += 5   # Migliora la casualità
         if criteria["entropy"]:
-            score += 5
+            score += 5   # Misura della casualità complessiva
         
-        return min(score, 100)
+        return min(score, 100)  # Assicura che il punteggio non superi 100
     
     def _determine_strength(self, score: int) -> PasswordStrength:
-        """Determina il livello di forza basato sul punteggio"""
+        """
+        Converte il punteggio numerico in un livello di forza categorico
+        Basato su standard industriali per la classificazione delle password
+        """
         if score >= 90:
-            return PasswordStrength.VERY_STRONG
+            return PasswordStrength.VERY_STRONG    # Eccellente (90-100)
         elif score >= 70:
-            return PasswordStrength.STRONG
+            return PasswordStrength.STRONG         # Forte (70-89)
         elif score >= 50:
-            return PasswordStrength.GOOD
+            return PasswordStrength.GOOD           # Buona (50-69)
         elif score >= 30:
-            return PasswordStrength.FAIR
+            return PasswordStrength.FAIR           # Discreta (30-49)
         elif score >= 10:
-            return PasswordStrength.WEAK
+            return PasswordStrength.WEAK           # Debole (10-29)
         else:
-            return PasswordStrength.VERY_WEAK
+            return PasswordStrength.VERY_WEAK      # Molto debole (0-9)
     
     def _generate_suggestions(self, criteria: Dict[str, bool], password: str) -> List[str]:
-        """Genera suggerimenti per migliorare la password"""
+        """
+        Genera suggerimenti personalizzati basati sui criteri non soddisfatti
+        Fornisce consigli specifici e actionable per migliorare la password
+        """
         suggestions = []
         
+        # Suggerimenti progressivi per la lunghezza
         if not criteria["length_8"]:
             suggestions.append("Usa almeno 8 caratteri")
         elif not criteria["length_12"]:
@@ -141,6 +181,7 @@ class PasswordValidator:
         elif not criteria["length_16"]:
             suggestions.append("Ottimo se usi 16+ caratteri per massima sicurezza")
         
+        # Suggerimenti per diversificare i tipi di caratteri
         if not criteria["uppercase"]:
             suggestions.append("Aggiungi lettere maiuscole (A-Z)")
         
@@ -153,6 +194,7 @@ class PasswordValidator:
         if not criteria["special_chars"]:
             suggestions.append("Aggiungi caratteri speciali (!@#$%^&*)")
         
+        # Suggerimenti per evitare pattern insicuri
         if not criteria["no_common"]:
             suggestions.append("Evita password comuni")
         
@@ -162,53 +204,74 @@ class PasswordValidator:
         if not criteria["no_sequential"]:
             suggestions.append("Evita sequenze consecutive (123, abc)")
         
+        # Messaggio di congratulazioni per password eccellenti
         if not suggestions:
             suggestions.append("Password eccellente! 🎉")
         
         return suggestions
     
     def _get_color(self, strength: PasswordStrength) -> str:
-        """Ottiene il colore per il livello di forza"""
+        """
+        Restituisce il codice colore appropriato per visualizzare il livello di forza
+        Usa una scala cromatica intuitiva dal rosso (pericoloso) al verde (sicuro)
+        """
         colors = {
-            PasswordStrength.VERY_WEAK: "#F44336",  # Rosso
-            PasswordStrength.WEAK: "#FF5722",       # Rosso arancio
-            PasswordStrength.FAIR: "#FF9800",       # Arancione
-            PasswordStrength.GOOD: "#FFC107",       # Giallo
-            PasswordStrength.STRONG: "#8BC34A",     # Verde chiaro
-            PasswordStrength.VERY_STRONG: "#4CAF50" # Verde
+            PasswordStrength.VERY_WEAK: "#F44336",    # Rosso intenso - Pericolo
+            PasswordStrength.WEAK: "#FF5722",         # Rosso arancio - Attenzione
+            PasswordStrength.FAIR: "#FF9800",         # Arancione - Migliorabile
+            PasswordStrength.GOOD: "#FFC107",         # Giallo - Accettabile
+            PasswordStrength.STRONG: "#8BC34A",       # Verde chiaro - Buona
+            PasswordStrength.VERY_STRONG: "#4CAF50"   # Verde intenso - Eccellente
         }
         return colors[strength]
     
     def _has_repeated_chars(self, password: str) -> bool:
-        """Controlla se ci sono 3+ caratteri consecutivi ripetuti"""
+        """
+        Verifica se la password contiene 3 o più caratteri identici consecutivi
+        Pattern come 'aaa' o '111' rendono la password più vulnerabile
+        """
         for i in range(len(password) - 2):
             if password[i] == password[i+1] == password[i+2]:
                 return True
         return False
     
     def _has_sequential_chars(self, password: str) -> bool:
-        """Controlla sequenze consecutive (123, abc, qwe)"""
+        """
+        Cerca sequenze consecutive prevedibili nella password
+        Include sequenze numeriche, alfabetiche e di tastiera
+        """
+        # Definisce le sequenze comuni da evitare
         sequences = [
-            "0123456789",
-            "abcdefghijklmnopqrstuvwxyz",
-            "qwertyuiopasdfghjklzxcvbnm"
+            "0123456789",                            # Sequenza numerica
+            "abcdefghijklmnopqrstuvwxyz",           # Alfabeto
+            "qwertyuiopasdfghjklzxcvbnm"            # Layout tastiera QWERTY
         ]
         
         password_lower = password.lower()
         for seq in sequences:
+            # Controlla sequenze di 3+ caratteri in entrambe le direzioni
             for i in range(len(seq) - 2):
-                if seq[i:i+3] in password_lower or seq[i:i+3][::-1] in password_lower:
+                substring = seq[i:i+3]
+                # Verifica sia la sequenza normale che quella inversa
+                if substring in password_lower or substring[::-1] in password_lower:
                     return True
         return False
     
     def _has_mixed_case(self, password: str) -> bool:
-        """Controlla se ha maiuscole e minuscole mischiate (non solo all'inizio)"""
-        has_upper = any(c.isupper() for c in password[1:])  # Escludi primo carattere
+        """
+        Verifica se la password ha maiuscole e minuscole distribuite
+        Non solo la prima lettera maiuscola, ma un mix reale
+        """
+        # Esclude il primo carattere per evitare il bias della prima lettera maiuscola
+        has_upper = any(c.isupper() for c in password[1:])
         has_lower = any(c.islower() for c in password)
         return has_upper and has_lower
     
     def _calculate_entropy(self, password: str) -> float:
-        """Calcola l'entropia della password"""
+        """
+        Calcola l'entropia della password (misura della casualità)
+        Maggiore entropia = password più difficile da indovinare
+        """
         if not password:
             return 0
         

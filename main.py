@@ -22,13 +22,23 @@ def install_dependencies():
 def cleanup_on_exit():
     """Cleanup quando l'app si chiude"""
     try:
-        # Forza la pulizia di tutti i widget CustomTkinter
         import customtkinter as ctk
-        # Reset scaling tracker
-        if hasattr(ctk.windows.widgets.scaling.scaling_tracker, 'ScalingTracker'):
-            ctk.windows.widgets.scaling.scaling_tracker.ScalingTracker.window_widgets_dict.clear()
-            ctk.windows.widgets.scaling.scaling_tracker.ScalingTracker.window_dpi_scaling_dict.clear()
-    except:
+        
+        try:
+            if hasattr(ctk.windows.widgets.scaling.scaling_tracker, 'ScalingTracker'):
+                tracker = ctk.windows.widgets.scaling.scaling_tracker.ScalingTracker
+                tracker.window_widgets_dict.clear()
+                tracker.window_dpi_scaling_dict.clear()
+        except:
+            pass
+        
+        try:
+            ctk.CTk._current_height = 600
+            ctk.CTk._current_width = 600
+        except:
+            pass
+            
+    except Exception:
         pass
 
 # Aggiungi la directory corrente al path per gli import
@@ -64,17 +74,31 @@ def main():
         
         # Crea e avvia l'applicazione
         app = PasswordManagerApp()
+        
+        # Gestisci graceful shutdown
+        def on_closing():
+            try:
+                app._on_closing()
+            except:
+                pass
+            
+        app.protocol("WM_DELETE_WINDOW", on_closing)
         app.mainloop()
         
     except Exception as e:
-        print(f"Errore durante l'avvio dell'applicazione: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
         if app:
             try:
+                app.quit()
                 app.destroy()
             except:
                 pass
-    finally:
         cleanup_on_exit()
+        
+        import sys
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

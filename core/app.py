@@ -22,9 +22,16 @@ class PasswordManagerApp(ctk.CTk):
         self.login_view = None
         self.register_view = None
         
+        print("Inizializzazione app...")
+        
         # Inizializza database
-        data_dir = Path(__file__).parent.parent / "data"
-        self.database = PasswordDatabase(str(data_dir))
+        try:
+            data_dir = Path(__file__).parent.parent / "data"
+            self.database = PasswordDatabase(str(data_dir))
+            print(f"Database inizializzato: {self.database}")
+        except Exception as e:
+            print(f"Errore inizializzazione database: {e}")
+            self.database = None
         
         # Setup UI
         self._setup_ui()
@@ -69,7 +76,7 @@ class PasswordManagerApp(ctk.CTk):
                 self._on_register_success,
                 self._on_back_to_login
             )
-            # Condividi il database
+            # Condividi il database (come fatto per LoginView)
             self.register_view.database = self.database
             self.register_view.pack(fill="both", expand=True)
             self.current_view = self.register_view
@@ -125,27 +132,72 @@ class PasswordManagerApp(ctk.CTk):
             self._show_dashboard()
 
     def _clear_current_view(self):
-        """Pulisce la vista corrente in modo sicuro"""
-        # Pulisci il frame principale
+        """
+        Pulisce la vista corrente in modo sicuro per evitare memory leak
+        Gestisce la pulizia ricorsiva di tutti i widget e le loro risorse
+        """
         try:
-            for child in self.main_frame.winfo_children():
+            # Forza il completamento di tutte le operazioni pending della GUI
+            self.update_idletasks()
+            
+            # Distrugge tutti i widget figli del frame principale
+            for child in list(self.main_frame.winfo_children()):
                 try:
-                    child.destroy()
-                except:
+                    # Disabilita eventuali callback di scaling per evitare errori durante distruzione
+                    if hasattr(child, '_set_scaling'):
+                        try:
+                            child._set_scaling = lambda x: None
+                        except:
+                            pass
+                    
+                    # Esegue distruzione ricorsiva sicura
+                    self._destroy_widget_safely(child)
+                except Exception as e:
+                    # Log degli errori di distruzione per debugging
+                    print(f"ERRORE PULIZIA WIDGET: {e}")
                     pass
-        except:
-            pass
+        except Exception as e:
+            print(f"ERRORE PULIZIA VISTA: {e}")
         
-        # Reset delle variabili
+        # Reset delle variabili di stato per prevenire riferimenti pendenti
         self.current_view = None
         self.login_view = None
         self.register_view = None
+        
+        # Forza garbage collection per liberare memoria
+        import gc
+        gc.collect()
+    
+    def _destroy_widget_safely(self, widget):
+        """Distrugge un widget in modo sicuro"""
+        try:
+            # Prima distruggi tutti i figli
+            for child in list(widget.winfo_children()):
+                self._destroy_widget_safely(child)
+            
+            # Poi distruggi il widget stesso
+            widget.destroy()
+        except Exception as e:
+            print(f"Errore distruggendo widget {widget}: {e}")
 
     def _on_login_success(self):
         """Callback per login riuscito"""
-        # Il database dovrebbe già avere current_user impostato dal metodo login
-        print(f"Login riuscito per utente: {self.database.current_user}")
-        self._show_dashboard()
+        try:
+            # Verifica che il database abbia current_user impostato
+            if not self.database or not self.database.current_user:
+                print("Errore: database o current_user non validi dopo login")
+                from core.components import show_message
+                show_message(self, "Errore", "Errore interno: stato utente non valido", "error")
+                self._show_login()
+                return
+            
+            print(f"Login riuscito per utente: {self.database.current_user}")
+            self.current_user = self.database.current_user  # Sincronizza
+            self._show_dashboard()
+            
+        except Exception as e:
+            print(f"Errore in _on_login_success: {e}")
+            self._show_login()
 
     def _on_register_click(self):
         """Callback per il click su registrazione"""
@@ -162,13 +214,16 @@ class PasswordManagerApp(ctk.CTk):
     def _on_logout(self):
         """Callback per logout"""
         try:
+            print("Eseguendo logout...")
+            
             # Pulisci il database
             if self.database:
-                self.database.current_user = None
+                self.database.logout()
             
             # Reset variabili
             self.current_user = None
             
+            print("Logout completato, tornando al login")
             # Torna al login
             self._show_login()
             
@@ -179,8 +234,25 @@ class PasswordManagerApp(ctk.CTk):
     def _on_closing(self):
         """Gestisce la chiusura dell'applicazione"""
         try:
-            # Cleanup
+            print("Chiusura applicazione...")
+            
+            # Cleanup viste
             self._clear_current_view()
+            
+            # Pulisci CustomTkinter scaling tracker
+            try:
+                import customtkinter as ctk
+                if hasattr(ctk, 'windows') and hasattr(ctk.windows, 'widgets'):
+                    if hasattr(ctk.windows.widgets, 'scaling'):
+                        scaling_module = ctk.windows.widgets.scaling
+                        if hasattr(scaling_module, 'scaling_tracker'):
+                            tracker = scaling_module.scaling_tracker.ScalingTracker
+                            if hasattr(tracker, 'window_widgets_dict'):
+                                tracker.window_widgets_dict.clear()
+                            if hasattr(tracker, 'window_dpi_scaling_dict'):
+                                tracker.window_dpi_scaling_dict.clear()
+            except Exception as e:
+                print(f"Errore pulizia CustomTkinter: {e}")
             
             # Chiudi database
             if hasattr(self.database, 'close'):
@@ -189,4 +261,5 @@ class PasswordManagerApp(ctk.CTk):
         except Exception as e:
             print(f"Errore durante chiusura: {e}")
         finally:
+            self.quit()
             self.destroy()

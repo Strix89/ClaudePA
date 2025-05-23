@@ -28,24 +28,34 @@ class ThemedWidget:
             print(f"Errore applicazione tema: {e}")
     
     def _update_theme(self):
-        """Callback per aggiornamento tema"""
+        """
+        Callback automatico per aggiornamento tema
+        Usa il sistema after() per garantire thread safety
+        """
         if self._destroyed:
             return
         
-        # Usa after per assicurarsi che l'aggiornamento avvenga nel thread principale
+        # Utilizza after() per assicurarsi che l'aggiornamento avvenga nel thread principale
+        # Questo previene errori di concorrenza durante il cambio tema
         if hasattr(self, 'after'):
             self.after(1, self._apply_theme)
         else:
             self._apply_theme()
     
     def destroy(self):
-        """Override destroy per rimuovere observer"""
+        """
+        Override del metodo destroy per cleanup automatico
+        Rimuove l'observer dal theme manager per evitare memory leak
+        """
         self._destroyed = True
         try:
+            # Rimuove questo widget dalla lista degli observer del tema
             theme_manager.remove_observer(self._update_theme)
         except:
+            # Ignora errori durante la rimozione (widget già rimosso)
             pass
         
+        # Chiama il destroy originale se disponibile
         if hasattr(super(), 'destroy'):
             super().destroy()
 

@@ -100,9 +100,8 @@ class ThemeManager:
         for callback in self.observers[:]:  # Copia la lista per evitare problemi di concorrenza
             try:
                 callback()
-            except Exception as e:
-                print(f"Errore notifica observer: {e}")
-                # Rimuovi observer problematici
+            except Exception:
+                # Rimuovi observer problematici senza log
                 self.remove_observer(callback)
 
 # Istanza globale del theme manager

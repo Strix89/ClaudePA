@@ -39,7 +39,7 @@ class BackupView(ThemedFrame):
         )
         close_button.pack(side="right", pady=15, padx=15)
         
-        # Sottotitolo con info utente
+        # Sottotitolo con informazioni sull'utente corrente e statistiche
         info_frame = ThemedFrame(self, style="background")
         info_frame.pack(fill="x", padx=20, pady=(0, 10))
         
@@ -51,29 +51,29 @@ class BackupView(ThemedFrame):
         user_info.configure(font=ctk.CTkFont(size=12))
         user_info.pack(anchor="w")
         
-        # Frame principale scrollabile
+        # Frame principale con scrolling per contenuto lungo
         main_scroll = ctk.CTkScrollableFrame(self, corner_radius=0)
         main_scroll.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
-        # Container principale
+        # Container principale che conterrà tutte le sezioni
         container = ThemedFrame(main_scroll, style="background")
         container.pack(fill="both", expand=True)
         
-        # Sezione Export
+        # Sezione per esportare le password esistenti
         self._create_export_section(container)
         
-        # Separatore
+        # Separatore visivo tra le sezioni
         separator = ThemedFrame(container, style="surface", height=2)
         separator.pack(fill="x", pady=20)
         
-        # Sezione Import  
+        # Sezione per importare backup esistenti
         self._create_import_section(container)
         
-        # Separatore
+        # Altro separatore visivo
         separator2 = ThemedFrame(container, style="surface", height=2)
         separator2.pack(fill="x", pady=20)
         
-        # Sezione Lista Backup
+        # Sezione che mostra la lista dei backup disponibili
         self._create_backup_list_section(container)
     
     def _create_export_section(self, parent):
@@ -710,3 +710,53 @@ Verifica che il file di backup sia valido e riprova."""
             height=35
         )
         delete_btn.pack(side="right")
+    
+    def _load_backup_to_form(self, filepath: str):
+        """Carica il percorso del backup nel form di import"""
+        try:
+            # Inserisce il percorso nel campo file del form di import
+            self.file_entry.delete(0, "end")
+            self.file_entry.insert(0, filepath)
+            
+            # Aggiorna il placeholder per mostrare il nome del file
+            filename = Path(filepath).name
+            
+            # Focus sul campo password per guidare l'utente
+            self.import_password_entry.focus()
+            
+            # Mostra messaggio di conferma
+            show_message(
+                self, 
+                "File Caricato", 
+                f"File di backup caricato: {filename}\n\nInserisci la password master per importare.", 
+                "success"
+            )
+            
+        except Exception as e:
+            show_message(self, "Errore", f"Errore caricando il file: {str(e)}", "error")
+
+    def _confirm_backup_delete(self, dialog, backup: Dict):
+        """Conferma ed esegue l'eliminazione del backup"""
+        try:
+            dialog.destroy()
+            
+            filepath = backup['filepath']
+            filename = backup['filename']
+            
+            # Esegui l'eliminazione
+            success, message = self.backup_manager.delete_backup(filepath)
+            
+            if success:
+                show_message(
+                    self, 
+                    "Backup Eliminato", 
+                    f"Il backup '{filename}' è stato eliminato con successo.", 
+                    "success"
+                )
+                # Aggiorna la lista dei backup
+                self._refresh_backup_list()
+            else:
+                show_message(self, "Errore", f"Errore eliminando il backup:\n{message}", "error")
+                
+        except Exception as e:
+            show_message(self, "Errore", f"Errore durante l'eliminazione: {str(e)}", "error")

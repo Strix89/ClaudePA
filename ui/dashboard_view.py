@@ -7,7 +7,10 @@ from core.database import PasswordDatabase
 from core.password_strength import PasswordValidator, SecurePasswordGenerator
 
 class PasswordStrengthIndicator(ThemedFrame):
-    """Indicatore visivo della forza della password"""
+    """
+    Indicatore visivo della forza della password con barra di progresso colorata
+    Analizza in tempo reale la sicurezza della password inserita
+    """
     
     def __init__(self, master):
         super().__init__(master, style="surface")
@@ -15,21 +18,22 @@ class PasswordStrengthIndicator(ThemedFrame):
         self._create_ui()
     
     def _create_ui(self):
-        # Label forza password
+        """Crea l'interfaccia dell'indicatore di forza password"""
+        # Label descrittiva per l'indicatore
         self.strength_label = ThemedLabel(self, text="Forza Password:", style="primary")
         self.strength_label.configure(font=ctk.CTkFont(size=12, weight="bold"))
         self.strength_label.pack(anchor="w", pady=(0, 5))
         
-        # Frame per barra di progresso
+        # Container per barra di progresso e percentuale
         progress_frame = ThemedFrame(self, style="surface")
         progress_frame.pack(fill="x", pady=(0, 5))
         
-        # Barra di progresso personalizzata
+        # Barra di progresso che cambia colore in base alla forza
         self.progress_bar = ctk.CTkProgressBar(progress_frame, height=12)
         self.progress_bar.pack(fill="x", side="left", expand=True)
-        self.progress_bar.set(0)
+        self.progress_bar.set(0)  # Inizializza a 0%
         
-        # Label percentuale
+        # Label che mostra la percentuale numerica
         self.score_label = ThemedLabel(progress_frame, text="0%", style="secondary")
         self.score_label.configure(font=ctk.CTkFont(size=11))
         self.score_label.pack(side="right", padx=(10, 0))
@@ -1074,3 +1078,25 @@ class DashboardView(ThemedFrame):
                 
             except Exception as e:
                 show_message(self, "Errore", f"Impossibile aprire la vista backup: {str(e)}", "error")
+    
+    def destroy(self):
+        """Override destroy per pulizia sicura"""
+        try:
+            # Pulisci eventuali timer o callback
+            if hasattr(self, '_search_timer') and self._search_timer:
+                self.after_cancel(self._search_timer)
+            
+            # Pulisci tutti i widget dropdown/optionmenu
+            for widget in self.winfo_children():
+                try:
+                    if hasattr(widget, '_dropdown_menu'):
+                        try:
+                            widget._dropdown_menu.destroy()
+                        except:
+                            pass
+                except:
+                    pass
+        except:
+            pass
+        
+        super().destroy()

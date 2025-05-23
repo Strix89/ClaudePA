@@ -13,9 +13,8 @@ class RegisterView(ThemedFrame):
         self.on_register_success = on_register_success
         self.on_back_to_login = on_back_to_login or (lambda: None)
         
-        # Inizializza database
-        data_dir = Path(__file__).parent.parent / "data"
-        self.database = PasswordDatabase(str(data_dir))
+        # Il database sarà assegnato dall'app principale
+        self.database = None
         
         self._create_ui()
 
@@ -111,50 +110,63 @@ class RegisterView(ThemedFrame):
         self.confirm_entry.bind("<Return>", lambda e: self._handle_register())
     
     def _handle_register(self):
-        """Gestisce il processo di registrazione"""
+        """Gestisce il processo di registrazione con validazione completa"""
+        # Recupera e pulisce i dati inseriti dall'utente
         username = self.username_entry.get().strip()
         password = self.password_entry.get()
         confirm_password = self.confirm_entry.get()
         
+        # Validazione dei campi obbligatori
         if not username or not password:
             show_message(self, "Errore", "Inserisci nome utente e password", "error")
             return
         
+        # Validazione lunghezza username (minimo 3 caratteri)
+        if len(username) < 3:
+            show_message(self, "Errore", "Il nome utente deve essere di almeno 3 caratteri", "error")
+            return
+        
+        # Validazione conferma password
         if password != confirm_password:
             show_message(self, "Errore", "Le password non coincidono", "error")
             return
         
+        # Validazione sicurezza password (minimo 8 caratteri)
         if len(password) < 8:
             show_message(self, "Errore", "La password deve essere di almeno 8 caratteri", "error")
             return
         
+        # Verifica disponibilità del database
+        if not self.database:
+            show_message(self, "Errore", "Database non disponibile", "error")
+            return
+        
         try:
-            # Registra l'utente
-            result = self.database.register_user(username, password)
-            
-            # Verifica che il risultato sia una tupla
-            if result is None:
-                show_message(self, "Errore", "Errore interno del database", "error")
-                return
-            
-            if not isinstance(result, tuple) or len(result) != 2:
-                show_message(self, "Errore", "Risposta del database non valida", "error")
-                return
-            
-            success, message = result
+            # Tenta la registrazione nel database
+            success, message = self.database.register_user(username, password)
             
             if success:
-                show_message(self, "Successo", "Account creato con successo", "success")
+                # Registrazione completata con successo
+                show_message(
+                    self, 
+                    "Successo", 
+                    f"Account creato con successo!\n\nUsername: {username}\n\nOra puoi effettuare il login.", 
+                    "success"
+                )
+                # Pulisce il form e ritorna al login
+                self.clear_form()
                 self.on_register_success()
             else:
-                show_message(self, "Errore", message, "error")
+                # Mostra errore specifico dalla registrazione (es. username esistente)
+                show_message(self, "Errore", f"Registrazione fallita: {message}", "error")
                 
         except Exception as e:
-            print(f"Errore durante la registrazione: {e}")
+            # Gestisce errori imprevisti durante la registrazione
+            print(f"ERRORE REGISTRAZIONE: {username} - {str(e)}")
             show_message(self, "Errore", f"Errore durante la registrazione: {str(e)}", "error")
     
     def clear_form(self):
-        """Pulisce il form"""
+        """Pulisce tutti i campi del form di registrazione"""
         self.username_entry.delete(0, "end")
         self.password_entry.delete(0, "end")
         self.confirm_entry.delete(0, "end")
