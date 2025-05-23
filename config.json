@@ -1,0 +1,205 @@
+{
+  "app": {
+    "title": "ClaudePassManager",
+    "geometry": {
+      "width": 1000,
+      "height": 700,
+      "min_width": 800,
+      "min_height": 600
+    }
+  },
+  "ui": {
+    "fonts": {
+      "title": {
+        "size": 28,
+        "weight": "bold"
+      },
+      "subtitle": {
+        "size": 20,
+        "weight": "bold"
+      },
+      "header": {
+        "size": 18,
+        "weight": "bold"
+      },
+      "body": {
+        "size": 12,
+        "weight": "normal"
+      },
+      "small": {
+        "size": 11,
+        "weight": "normal"
+      }
+    },
+    "spacing": {
+      "small": 5,
+      "medium": 10,
+      "large": 20,
+      "xlarge": 30
+    }
+  },
+  "login": {
+    "title": "Accedi al tuo Account",
+    "username_label": "Nome Utente:",
+    "username_placeholder": "Inserisci il tuo nome utente",
+    "password_label": "Password Master:",
+    "password_placeholder": "Inserisci la tua password",
+    "login_button": "🔓 Accedi",
+    "register_button": "📝 Crea Nuovo Account",
+    "welcome_message": "Benvenuto nel tuo Password Manager sicuro"
+  },
+  "register": {
+    "title": "Crea Nuovo Account",
+    "username_label": "Nome Utente:",
+    "username_placeholder": "Inserisci un nome utente",
+    "password_label": "Password Master:",
+    "password_placeholder": "Inserisci una password sicura",
+    "confirm_label": "Conferma Password:",
+    "confirm_placeholder": "Ripeti la password",
+    "register_button": "Crea Account",
+    "back_button": "← Torna al Login"
+  },
+  "dashboard": {
+    "title": "🔐 ClaudePA",
+    "user_info_template": "👤 {username} | 📊 {count} password salvate",
+    "theme_toggle_light": "🌙 Tema Scuro",
+    "theme_toggle_dark": "☀️ Tema Chiaro",
+    "backup_button": "💾 Backup & Restore",
+    "logout_button": "🚪 Logout",
+    "password_list_title": "📋 Le tue Password",
+    "new_password_button": "➕ Nuova",
+    "search_placeholder": "🔍 Cerca password...",
+    "welcome": {
+      "icon": "🎯",
+      "title": "Gestisci le tue Password",
+      "description": "• Seleziona una password dalla lista per modificarla\n• Clicca '➕ Nuova' per aggiungere una password\n• Usa il generatore per password sicure\n• Crea backup per proteggere i tuoi dati",
+      "quick_add_button": "➕ Aggiungi Prima Password",
+      "quick_backup_button": "💾 Gestisci Backup"
+    }
+  },
+  "password_editor": {
+    "new_title": "Nuova Password",
+    "edit_title_template": "Modifica: {site}",
+    "site_label": "Sito/App:",
+    "site_placeholder": "es. Facebook, Gmail, Amazon",
+    "username_label": "Username/Email:",
+    "username_placeholder": "es. mario.rossi@gmail.com",
+    "password_label": "Password:",
+    "password_placeholder": "Password",
+    "notes_label": "Note (opzionale):",
+    "show_password_text": "Mostra password",
+    "strength_label": "Forza Password:",
+    "generate_button": "🎲 Genera",
+    "tips_button": "💡 Consigli",
+    "copy_button": "📋 Copia",
+    "save_new_button": "💾 Salva Nuova",
+    "save_edit_button": "💾 Salva Modifiche",
+    "cancel_button": "❌ Annulla",
+    "delete_button": "🗑️ Elimina Password"
+  },
+  "backup": {
+    "title": "🔄 Gestione Backup",
+    "close_button": "✕ Chiudi",
+    "user_info_template": "👤 Account: {username} | 📊 Password salvate: {count}",
+    "export_section": {
+      "title": "📤 Esporta Password",
+      "description": "💡 Crea un backup crittografato di tutte le tue password.\nIl file sarà protetto dalla tua password master e potrà essere importato in futuro.",
+      "button": "🔐 Crea Backup Adesso",
+      "status_template": "{count} password pronte per l'export",
+      "no_passwords": "Nessuna password da esportare"
+    },
+    "import_section": {
+      "title": "📥 Importa Password",
+      "description": "📂 Ripristina le password da un backup precedente.\nLe password già esistenti verranno saltate automaticamente.",
+      "file_label": "📁 Seleziona file di backup:",
+      "file_placeholder": "Nessun file selezionato...",
+      "browse_button": "📂 Sfoglia",
+      "password_label": "🔑 Password master del backup:",
+      "password_placeholder": "Inserisci la password master del backup...",
+      "button": "📥 Importa dal Backup"
+    },
+    "backup_list": {
+      "title": "📋 Backup Disponibili",
+      "refresh_button": "🔄 Aggiorna",
+      "load_button": "📋 Carica",
+      "delete_button": "🗑️ Elimina",
+      "empty_message": "Nessun backup trovato\nCrea il tuo primo backup utilizzando il pulsante sopra"
+    }
+  },
+  "messages": {
+    "validation": {
+      "empty_fields": "Inserisci nome utente e password",
+      "username_min_length": "Il nome utente deve essere di almeno 3 caratteri",
+      "password_mismatch": "Le password non coincidono",
+      "password_min_length": "La password deve essere di almeno 8 caratteri",
+      "database_unavailable": "Database non disponibile",
+      "missing_required_fields": "Compila i campi obbligatori"
+    },
+    "success": {
+      "registration_complete": "Account creato con successo!\n\nUsername: {username}\n\nOra puoi effettuare il login.",
+      "login_success": "Accesso effettuato con successo!",
+      "password_saved": "Password salvata con successo",
+      "password_updated": "Password aggiornata con successo",
+      "password_deleted": "Password eliminata con successo",
+      "password_copied": "Password copiata negli appunti",
+      "backup_created": "Backup creato con successo!",
+      "import_completed": "Import completato con successo!"
+    },
+    "errors": {
+      "registration_failed": "Registrazione fallita: {message}",
+      "login_failed": "Credenziali non valide",
+      "database_error": "Errore database: {error}",
+      "backup_error": "Errore durante la creazione del backup:\n\n{error}",
+      "import_error": "Errore durante l'importazione: {error}",
+      "file_selection_required": "Seleziona un file di backup",
+      "password_required": "Inserisci la password master"
+    },
+    "confirmations": {
+      "delete_password": "Sei sicuro di voler eliminare questa password?\n\n🌐 Sito: {site}\n👤 Username: {username}\n\n⚠️ Questa operazione non può essere annullata!",
+      "delete_backup": "Sei sicuro di voler eliminare questo backup?\n\n📁 {filename}\n\n⚠️ Questa operazione non può essere annullata!"
+    }
+  },
+  "password_generator": {
+    "types": {
+      "strong_16": "Forte (16 car.)",
+      "strong_20": "Forte (20 car.)",
+      "memorable": "Memorabile",
+      "custom": "Personalizza"
+    },
+    "strength_levels": {
+      "0": "Molto Debole",
+      "1": "Debole",
+      "2": "Discreta", 
+      "3": "Buona",
+      "4": "Forte",
+      "5": "Molto Forte"
+    },
+    "custom_dialog": {
+      "title": "Personalizza Password",
+      "length_label": "Lunghezza:",
+      "uppercase_option": "Maiuscole (A-Z)",
+      "lowercase_option": "Minuscole (a-z)",
+      "numbers_option": "Numeri (0-9)",
+      "symbols_option": "Simboli (!@#$...)",
+      "generate_button": "Genera",
+      "cancel_button": "Annulla"
+    }
+  },
+  "icons": {
+    "success": "✅",
+    "error": "❌", 
+    "warning": "⚠️",
+    "info": "ℹ️",
+    "user": "👤",
+    "lock": "🔐",
+    "backup": "💾",
+    "search": "🔍",
+    "settings": "⚙️",
+    "copy": "📋",
+    "delete": "🗑️",
+    "edit": "✏️",
+    "new": "➕",
+    "save": "💾",
+    "cancel": "❌"
+  }
+}

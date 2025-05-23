@@ -5,6 +5,7 @@ from pathlib import Path
 from core.components import ThemedFrame, ThemedLabel, ThemedButton, ThemedEntry, show_message
 from core.backup import BackupManager
 from core.database import PasswordDatabase
+from core.config import config_manager
 
 class BackupView(ThemedFrame):
     """Vista per gestire backup e restore delle password"""
@@ -21,17 +22,20 @@ class BackupView(ThemedFrame):
         self._refresh_backup_list()
     
     def _create_ui(self):
-        # Header con titolo e pulsante chiudi
+        # Header con titolo e pulsante chiudi - usa configurazione
         header_frame = ThemedFrame(self, style="surface")
         header_frame.pack(fill="x", padx=20, pady=(20, 0))
         
-        title_label = ThemedLabel(header_frame, text="🔄 Gestione Backup", style="primary")
+        title_text = config_manager.get('backup.title', '🔄 Gestione Backup')
+        close_button_text = config_manager.get('backup.close_button', '✕ Chiudi')
+        
+        title_label = ThemedLabel(header_frame, text=title_text, style="primary")
         title_label.configure(font=ctk.CTkFont(size=24, weight="bold"))
         title_label.pack(side="left", pady=15)
         
         close_button = ThemedButton(
             header_frame,
-            text="✕ Chiudi",
+            text=close_button_text,
             command=self.on_close,
             style="secondary",
             width=100,
@@ -39,15 +43,17 @@ class BackupView(ThemedFrame):
         )
         close_button.pack(side="right", pady=15, padx=15)
         
-        # Sottotitolo con informazioni sull'utente corrente e statistiche
+        # Sottotitolo con informazioni sull'utente corrente e statistiche - usa configurazione
         info_frame = ThemedFrame(self, style="background")
         info_frame.pack(fill="x", padx=20, pady=(0, 10))
         
-        user_info = ThemedLabel(
-            info_frame, 
-            text=f"👤 Account: {self.username} | 📊 Password salvate: {len(self.database.get_passwords())}", 
-            style="secondary"
+        user_info_text = config_manager.format_message(
+            'backup.user_info_template',
+            username=self.username,
+            count=len(self.database.get_passwords())
         )
+        
+        user_info = ThemedLabel(info_frame, text=user_info_text, style="secondary")
         user_info.configure(font=ctk.CTkFont(size=12))
         user_info.pack(anchor="w")
         
@@ -425,7 +431,7 @@ la password master utilizzata per proteggerlo."""
     def _show_import_confirmation_dialog(self, backup_data: Dict):
         """Mostra dialog di conferma per l'import"""
         confirm_dialog = ctk.CTkToplevel(self)
-        confirm_dialog.title("Conferma Import")
+        confirm_dialog.title(config_manager.get('backup.import_section.title', 'Conferma Import'))
         confirm_dialog.geometry("480x350")
         confirm_dialog.resizable(False, False)
         confirm_dialog.transient(self)

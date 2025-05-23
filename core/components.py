@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from typing import Optional, Callable, Any
 from .theme import theme_manager
+from .config import config_manager
 
 class ThemedWidget:
     """Classe base per widget che supportano il tema automatico"""
@@ -195,12 +196,12 @@ class MessageDialog(ThemedWidget):
         header_frame = ThemedFrame(self.main_frame, style="surface")
         header_frame.pack(fill="x", pady=(0, 8))
         
-        # Icona
+        # Icona - usa configurazione
         icon_map = {
-            "info": "ℹ️",
-            "success": "✅",
-            "warning": "⚠️",
-            "error": "❌"
+            "info": config_manager.get('icons.info', 'ℹ️'),
+            "success": config_manager.get('icons.success', '✅'),
+            "warning": config_manager.get('icons.warning', '⚠️'),
+            "error": config_manager.get('icons.error', '❌')
         }
         
         icon_label = ThemedLabel(header_frame, text=icon_map.get(self.type, "ℹ️"))
@@ -389,13 +390,17 @@ def create_theme_toggle(parent):
         # Usa il theme manager per cambiare tema
         new_mode = theme_manager.toggle_mode()
         
-        # Aggiorna il testo del pulsante
-        button_text = "🌙 Tema Scuro" if new_mode == "light" else "☀️ Tema Chiaro"
+        # Aggiorna il testo del pulsante - usa configurazione
+        button_text = (config_manager.get('dashboard.theme_toggle_light', '🌙 Tema Scuro') 
+                      if new_mode == "light" 
+                      else config_manager.get('dashboard.theme_toggle_dark', '☀️ Tema Chiaro'))
         toggle_button.configure(text=button_text)
     
     # Determina il testo iniziale del pulsante basato sulla modalità corrente
     current_mode = theme_manager.get_current_mode()
-    button_text = "🌙 Tema Scuro" if current_mode == "light" else "☀️ Tema Chiaro"
+    button_text = (config_manager.get('dashboard.theme_toggle_light', '🌙 Tema Scuro') 
+                  if current_mode == "light" 
+                  else config_manager.get('dashboard.theme_toggle_dark', '☀️ Tema Chiaro'))
     
     toggle_button = ThemedButton(
         parent,

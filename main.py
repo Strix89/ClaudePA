@@ -65,7 +65,11 @@ def main():
         ctk.set_appearance_mode("Light")
         ctk.set_default_color_theme("blue")
         
-        # Importa e inizializza il theme manager dopo aver configurato CustomTkinter
+        # Carica configurazione
+        from core.config import config_manager
+        print(f"Configurazione caricata da: {config_manager.config_file}")
+        
+        # Inizializza il theme manager dopo aver configurato CustomTkinter
         from core.theme import theme_manager
         theme_manager.set_mode("light")  # Assicura sincronizzazione
         

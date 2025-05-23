@@ -33,6 +33,13 @@ class ThemeManager:
         # Inizializza con il tema corrente di CustomTkinter
         current_mode = ctk.get_appearance_mode().lower()
         self.mode = current_mode
+        
+        # Carica configurazione temi se disponibile
+        try:
+            from .config import config_manager
+            self.config = config_manager
+        except ImportError:
+            self.config = None
     
     def set_mode(self, mode: str):
         """Imposta la modalità del tema"""
@@ -54,6 +61,13 @@ class ThemeManager:
     
     def get_colors(self):
         """Ottiene i colori del tema corrente"""
+        # Prova a caricare colori personalizzati dalla configurazione
+        if self.config:
+            custom_colors = self.config.get(f'themes.{self.mode}', {})
+            if custom_colors:
+                return custom_colors
+        
+        # Colori di default
         if self.mode == "dark":
             return {
                 'background': '#1a1a1a',

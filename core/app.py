@@ -4,6 +4,7 @@ from pathlib import Path
 from .theme import theme_manager, ThemeMode
 from .database import PasswordDatabase
 from core.components import ThemedFrame, ThemedLabel, ThemedButton
+from .config import config_manager
 
 class PasswordManagerApp(ctk.CTk):
     """Applicazione principale del password manager"""
@@ -11,10 +12,18 @@ class PasswordManagerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        # Configurazione finestra
-        self.title("Password Manager - Versione Semplificata")
-        self.geometry("1000x700")
-        self.minsize(800, 600)
+        # Configurazione finestra - usa configurazione
+        app_config = config_manager.get_app_config()
+        self.title(app_config.get('title', 'Password Manager'))
+        
+        geometry = app_config.get('geometry', {})
+        width = geometry.get('width', 1000)
+        height = geometry.get('height', 700)
+        min_width = geometry.get('min_width', 800)
+        min_height = geometry.get('min_height', 600)
+        
+        self.geometry(f"{width}x{height}")
+        self.minsize(min_width, min_height)
         
         # Inizializza variabili
         self.current_user = None

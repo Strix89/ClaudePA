@@ -5,6 +5,7 @@ from typing import Callable, Optional, Dict, Any
 from core.components import ThemedFrame, ThemedLabel, ThemedButton, ThemedEntry, show_message
 from core.database import PasswordDatabase
 from core.password_strength import PasswordValidator, SecurePasswordGenerator
+from core.config import config_manager
 
 class PasswordStrengthIndicator(ThemedFrame):
     """
@@ -19,8 +20,10 @@ class PasswordStrengthIndicator(ThemedFrame):
     
     def _create_ui(self):
         """Crea l'interfaccia dell'indicatore di forza password"""
-        # Label descrittiva per l'indicatore
-        self.strength_label = ThemedLabel(self, text="Forza Password:", style="primary")
+        # Label descrittiva per l'indicatore - usa configurazione
+        strength_label_text = config_manager.get('password_editor.strength_label', 'Forza Password:')
+        
+        self.strength_label = ThemedLabel(self, text=strength_label_text, style="primary")
         self.strength_label.configure(font=ctk.CTkFont(size=12, weight="bold"))
         self.strength_label.pack(anchor="w", pady=(0, 5))
         
@@ -55,14 +58,14 @@ class PasswordStrengthIndicator(ThemedFrame):
         # Aggiorna percentuale
         self.score_label.configure(text=f"{analysis.score}%")
         
-        # Aggiorna descrizione
+        # Aggiorna descrizione - usa configurazione
         strength_names = {
-            0: "Molto Debole",
-            1: "Debole", 
-            2: "Discreta",
-            3: "Buona",
-            4: "Forte",
-            5: "Molto Forte"
+            0: config_manager.get('password_generator.strength_levels.0', 'Molto Debole'),
+            1: config_manager.get('password_generator.strength_levels.1', 'Debole'),
+            2: config_manager.get('password_generator.strength_levels.2', 'Discreta'),
+            3: config_manager.get('password_generator.strength_levels.3', 'Buona'),
+            4: config_manager.get('password_generator.strength_levels.4', 'Forte'),
+            5: config_manager.get('password_generator.strength_levels.5', 'Molto Forte')
         }
         
         description = strength_names.get(analysis.strength.value, "Sconosciuta")
