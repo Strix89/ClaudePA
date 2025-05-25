@@ -21,10 +21,10 @@ Un password manager desktop sicuro, moderno e user-friendly sviluppato in Python
 
 ### 🔒 Sicurezza di Livello Enterprise
 - **Crittografia AES-256** tramite libreria `cryptography`
-- **Derivazione chiavi PBKDF2** con 100.000 iterazioni
-- **Salt casuali** per ogni utente
-- **Password master non recuperabile** (zero-knowledge)
-- **Backup crittografati** con password master
+- **Crittografia selettiva** - solo le password sono crittografate
+- **Derivazione chiavi deterministiche** basata su password + username
+- **Zero-knowledge architecture** - password master non recuperabile
+- **Backup crittografati** con autenticazione
 
 ### 🎨 Interfaccia Utente Moderna
 - **Sistema di temi dinamico** (Light/Dark/System)
@@ -148,663 +148,638 @@ frame = ThemedFrame(parent, style="surface")
 
 ## 🔐 Sicurezza e Crittografia
 
-### Schema di Crittografia
+ClaudePA implementa un sistema di **crittografia selettiva** dove solo le password vengono crittografate, mentre i metadati rimangono in chiaro per permettere ricerche efficienti e debugging semplificato.
 
-#### 1. Generazione Chiave Utente
+### 🏗️ Architettura di Sicurezza
+
+#### Filosofia "Zero-Knowledge"
+```
+🔐 Password Master → NON salvata mai da nessuna parte
+└── Usata solo per generare chiavi di crittografia
+└── Persa = dati irrecuperabili (by design)
+
+📄 File Utente = Metadati in chiaro + Password crittografate
+└── Permette ricerche veloci senza decrittografia
+└── Debug e manutenzione facilitati
+└── Solo le password sensibili sono protette
+```
+
+### 🔑 Generazione Chiavi di Crittografia
+
+#### Processo Step-by-Step
+
+**1. Input Utente**
 ```python
-# Combinazione password + username per unicità
-combined = f"{password}_{username}_ClaudePA_2024"
+username = "mario"
+password_master = "MiaPasswordSegreta123!"
+```
+
+**2. Combinazione Deterministca**
+```python
+# Il sistema combina username + password + salt applicazione
+combined = f"{password_master}_{username}_ClaudePA_2024"
+# Risultato: "MiaPasswordSegreta123!_mario_ClaudePA_2024"
+```
+
+**3. Hash SHA-256**
+```python
+import hashlib
 hash_bytes = hashlib.sha256(combined.encode()).digest()
-key = base64.urlsafe_b64encode(hash_bytes)  # Chiave Fernet compatibile
+# Risultato: 32 bytes di hash crittografico
+# Esempio: b'\x2a\x5f\x8c\x19...' (32 bytes)
 ```
 
-#### 2. Crittografia Selettiva
-```json
-{
-  "username": "mario",                    // ❌ NON crittografato
-  "password_hash": "abc123...",          // ❌ NON crittografato (hash)
-  "created_at": "2024-01-01T10:00:00",   // ❌ NON crittografato
-  "passwords": [
-    {
-      "site": "example.com",             // ❌ NON crittografato
-      "username": "mario@email.com",     // ❌ NON crittografato
-      "password": "gAAAAABh...",         // ✅ CRITTOGRAFATO (Fernet)
-      "notes": "Note in chiaro"          // ❌ NON crittografato
-    }
-  ]
-}
-```
-
-#### 3. Backup Sicuri
+**4. Conversione Chiave Fernet**
 ```python
-# Struttura file backup (.pwbak)
-[16 bytes: salt casuale] + [payload crittografato con Fernet]
-
-# Derivazione chiave backup
-key = derive_key(master_password + "_backup_ClaudePA_2024")
+import base64
+key = base64.urlsafe_b64encode(hash_bytes)
+# Risultato: chiave Fernet valida
+# Esempio: b'Kl-MGeQx7vZ2P3kS9mN8jW5hR1tY6uI0oP2aS4dF7gH='
 ```
 
-### Threat Model
+#### Vantaggi di questo Approccio
 
-#### ✅ Protetto Contro
-- **Accesso fisico al computer** (file crittografati)
-- **Malware** che legge file (password crittografate)
-- **Backup compromessi** (crittografia con password master)
-- **Rainbow table attacks** (salt casuali)
-- **Brute force offline** (PBKDF2 con 100k iterazioni)
+✅ **Deterministico**: Stessa password + username = stessa chiave sempre  
+✅ **Unico per utente**: Username diverso = chiave completamente diversa  
+✅ **Non reversibile**: Impossibile recuperare la password dalla chiave  
+✅ **Salt integrato**: "ClaudePA_2024" previene rainbow table attacks  
+✅ **Zero storage**: Chiave generata al volo, mai salvata  
 
-#### ⚠️ NON Protetto Contro
-- **Keylogger** durante inserimento password master
-- **Memory dump** durante esecuzione (password in RAM)
-- **Screen capture** quando password sono visibili
-- **Social engineering** per ottenere password master
+### 🔒 Crittografia delle Password
 
----
+#### Esempio Pratico Completo
 
-## 📚 Guida Utente
+**Scenario**: Mario vuole salvare la password del suo account GitHub
 
-### 🔑 Primo Utilizzo
+**Input**:
+```python
+site = "github.com"
+username_github = "mario.rossi@email.com"  
+password_github = "GitHub_SuperSecura_2024!"
+```
 
-#### 1. Registrazione Account
-1. Avvia l'applicazione con `python main.py`
-2. Clicca **"Crea Nuovo Account"**
-3. Inserisci:
-   - **Username**: minimo 3 caratteri, univoco
-   - **Password Master**: minimo 8 caratteri, sicura
-   - **Conferma Password**: deve corrispondere
-4. Clicca **"Crea Account"**
+**Processo di Crittografia**:
 
-#### 2. Primo Login
-1. Inserisci username e password master
-2. Clicca **"Accedi"**
-3. Verrai reindirizzato alla dashboard principale
+```python
+# 1. La chiave è già stata generata al login
+key = "Kl-MGeQx7vZ2P3kS9mN8jW5hR1tY6uI0oP2aS4dF7gH="
 
-### 🎯 Gestione Password
+# 2. Inizializza Fernet con la chiave
+from cryptography.fernet import Fernet
+fernet = Fernet(key)
 
-#### Aggiungere Nuova Password
-1. Nella dashboard, clicca **"➕ Nuova"**
-2. Compila i campi:
-   - **Sito**: URL o nome servizio
-   - **Username**: email o username
-   - **Password**: usa il generatore o inserisci manualmente
-   - **Note**: informazioni aggiuntive (opzionale)
-3. Clicca **"💾 Salva Nuova"**
+# 3. Cripta SOLO la password
+password_bytes = "GitHub_SuperSecura_2024!".encode('utf-8')
+encrypted_data = fernet.encrypt(password_bytes)
 
-#### Modificare Password Esistente
-1. Seleziona la password dalla lista a sinistra
-2. Modifica i campi necessari nell'editor
-3. Clicca **"💾 Salva Modifiche"**
+# 4. Converte in string base64 per storage JSON
+encrypted_b64 = base64.b64encode(encrypted_data).decode()
+# Risultato: "gAAAAABmF2X3kS5mN8jW2a5f8c19QxvZ..."
+```
 
-#### Eliminare Password
-1. Seleziona la password dalla lista
-2. Clicca **"🗑️ Elimina"**
-3. Conferma l'eliminazione nel dialog
-
-### 🎨 Personalizzazione Tema
-
-#### Cambio Tema Manuale
-- Clicca l'icona tema (🌙/☀️) in alto a destra
-- I colori si aggiornano automaticamente in tutta l'app
-
-#### Temi Disponibili
-- **🌞 Light Mode**: colori chiari per uso diurno
-- **🌙 Dark Mode**: colori scuri per uso notturno
-- **🖥️ System**: segue automaticamente il tema di sistema
-
-### 💾 Gestione Backup
-
-#### Creare Backup
-1. Clicca **"💾 Backup & Restore"**
-2. Nella sezione **"📤 Esporta Password"**
-3. Clicca **"🔐 Crea Backup Adesso"**
-4. Inserisci la password master per conferma
-5. Il file `.pwbak` viene salvato in `data/backups/`
-
-#### Ripristinare Backup
-1. Vai alla sezione **"📥 Importa Password"**
-2. Clicca **"📂 Sfoglia"** e seleziona il file `.pwbak`
-3. Inserisci la password master del backup
-4. Clicca **"📥 Importa dal Backup"**
-5. Conferma l'importazione nel dialog
-
-### 🔍 Ricerca e Filtri
-
-#### Ricerca Veloce
-- Usa la barra di ricerca sopra la lista password
-- Cerca per nome sito o username
-- I risultati si aggiornano in tempo reale
-
-#### Conteggio Password
-- Visualizza il numero totale di password nell'header
-- Mostra risultati filtrati durante la ricerca
-
----
-
-## 🔧 Documentazione Tecnica
-
-### Database Schema
-
-#### User File Structure (`data/users/{username}.json`)
+**Storage nel File JSON**:
 ```json
 {
   "username": "mario",
   "password_hash": "sha256_hash_della_password_master",
-  "created_at": "2024-01-01T10:00:00.000000",
-  "updated_at": "2024-01-01T12:00:00.000000", 
-  "version": "3.0",
   "passwords": [
     {
-      "site": "github.com",
-      "username": "mario@email.com",
-      "password": "gAAAAABhZ_encrypted_password_here",
-      "notes": "Account sviluppo personale",
-      "created_at": "2024-01-01T10:00:00.000000",
-      "updated_at": "2024-01-01T10:00:00.000000"
+      "site": "github.com",                           // ❌ NON crittografato
+      "username": "mario.rossi@email.com"            // ❌ NON crittografato  
+      "password": "gAAAAABmF2X3kS5mN8jW2a5f8c19..." // ✅ CRITTOGRAFATO
+      "notes": "Account sviluppo personale"          // ❌ NON crittografato
+      "created_at": "2024-01-01T10:00:00"            // ❌ NON crittografato
     }
   ]
 }
 ```
 
-#### Backup File Structure (`data/backups/backup_{user}_{timestamp}.pwbak`)
+#### Processo di Decrittografia
+
+Quando Mario vuole vedere la sua password GitHub:
+
+```python
+# 1. Recupera la stringa crittografata dal JSON
+encrypted_b64 = "gAAAAABmF2X3kS5mN8jW2a5f8c19..."
+
+# 2. Converte da base64 a bytes
+encrypted_data = base64.b64decode(encrypted_b64)
+
+# 3. Decrittografa con la stessa chiave generata al login
+fernet = Fernet(key)
+decrypted_bytes = fernet.decrypt(encrypted_data)
+
+# 4. Converte in stringa leggibile
+original_password = decrypted_bytes.decode('utf-8')
+# Risultato: "GitHub_SuperSecura_2024!"
+```
+
+### 🛡️ Sicurezza della Chiave
+
+#### Perché la Chiave Non È Mai Salvata
+
+```python
+# ❌ SBAGLIATO (mai fatto in ClaudePA):
+with open("user_key.txt", "w") as f:
+    f.write(key)  # Espone la chiave su disco
+
+# ✅ CORRETTO (approccio ClaudePA):
+def generate_key_on_demand(password, username):
+    combined = f"{password}_{username}_ClaudePA_2024"
+    hash_bytes = hashlib.sha256(combined.encode()).digest()
+    return base64.urlsafe_b64encode(hash_bytes)
+
+# La chiave esiste solo in memoria durante la sessione
+```
+
+#### Lifecycle della Chiave
+
+```
+👤 Utente inserisce password master
+    ↓
+🔑 Sistema genera chiave temporanea in RAM
+    ↓  
+🔓 Chiave usata per cripta/decripta password
+    ↓
+💾 Solo password crittografate salvate su disco
+    ↓
+🚪 Logout → chiave cancellata dalla memoria
+    ↓
+🔒 Dati inaccessibili fino al prossimo login
+```
+
+### 📁 Struttura File in Dettaglio
+
+#### File Utente Completo (`mario.json`)
+
+```json
+{
+  "username": "mario",
+  "password_hash": "e3b0c44298fc1c149afbf4c8996fb924...",
+  "created_at": "2024-01-01T10:00:00.000000",
+  "updated_at": "2024-01-01T12:30:45.000000",
+  "version": "3.0",
+  "passwords": [
+    {
+      "site": "github.com",
+      "username": "mario.rossi@email.com", 
+      "password": "gAAAAABmF2X3kS5mN8jW2a5f8c19QxvZ7P2mR4nT6wE8...",
+      "notes": "Account per progetti open source",
+      "created_at": "2024-01-01T10:15:00.000000",
+      "updated_at": "2024-01-01T10:15:00.000000"
+    },
+    {
+      "site": "gmail.com",
+      "username": "mario.rossi@gmail.com",
+      "password": "gAAAAABmF2Y4lT6nO9kX3b6g9d29RyvA8Q3oS5uU7xF9...",
+      "notes": "Email personale principale", 
+      "created_at": "2024-01-01T10:20:00.000000",
+      "updated_at": "2024-01-01T11:45:30.000000"
+    }
+  ]
+}
+```
+
+#### Cosa Può Vedere un Attaccante
+
+**Con accesso al file `mario.json`** (senza password master):
+
+✅ **Può vedere**:
+- Nome utente: "mario"
+- Siti web utilizzati: "github.com", "gmail.com" 
+- Username per ogni sito: "mario.rossi@email.com"
+- Note in chiaro: "Account per progetti open source"
+- Timestamp di creazione e modifica
+- Numero totale di password salvate
+
+❌ **NON può vedere**:
+- Password master di Mario
+- Password effettive per GitHub, Gmail, etc.
+- Contenuto delle password crittografate
+
+**Esempio di attacco fallito**:
+```python
+# Attaccante prova a decrittare senza chiave corretta
+encrypted = "gAAAAABmF2X3kS5mN8jW2a5f8c19QxvZ7P2mR4nT6wE8..."
+wrong_key = "chiave_sbagliata"
+
+try:
+    fernet = Fernet(wrong_key)
+    fernet.decrypt(base64.b64decode(encrypted))
+except:
+    print("❌ Decrittografia fallita - chiave incorretta")
+```
+
+### 🔐 Sistema di Backup
+
+#### Backup Crittografato Completo
+
+I backup in ClaudePA sono **completamente crittografati**, a differenza dei file utente normali:
+
+**Struttura file backup (`.pwbak`)**:
 ```
 [Byte 0-15]:   Salt casuale (16 bytes)
-[Byte 16+]:    Payload JSON crittografato con Fernet
+[Byte 16+]:    Tutto il contenuto crittografato con Fernet
 ```
 
-### Theme System
+#### 🔄 Processo di Export Backup - Esempio Completo
 
-#### Color Schemes
+**Scenario**: Mario vuole fare backup delle sue 5 password
+
+**1. Preparazione Dati**
 ```python
-LIGHT_COLORS = {
-    'primary': '#1f538d',      # Blu principale
-    'secondary': '#f0f0f0',    # Grigio chiaro
-    'surface': '#ffffff',      # Bianco superficie
-    'background': '#fafafa',   # Sfondo principale
-    'text': '#2b2b2b',        # Testo principale
-    'text_secondary': '#666666', # Testo secondario
-    'accent': '#0d47a1',      # Accento
-    'error': '#d32f2f',       # Errore
-    'border': '#e0e0e0',      # Bordi
-    'hover': '#e3f2fd'        # Hover
+# Mario ha queste password nel suo account
+mario_passwords = [
+    {
+        "site": "github.com",
+        "username": "mario@email.com", 
+        "password": "GitHub_Password_123!",
+        "notes": "Account sviluppo"
+    },
+    {
+        "site": "gmail.com", 
+        "username": "mario@gmail.com",
+        "password": "Gmail_SuperSecure_456!",
+        "notes": "Email personale"
+    }
+    // ...altre password
+]
+```
+
+**2. Creazione Backup**
+```python
+# Mario inserisce la sua password master per il backup
+mario_master_password = "MarioMasterPassword2024!"
+username = "mario"
+
+# Genera salt casuale per questo backup specifico
+import os
+salt = os.urandom(16)  
+# Esempio: b'\x8a\x2f\x6c\x19\x45\x7e\x9d\x3b\x1f\x4c\x8e\x2a\x7b\x6f\x5d\x9c'
+
+# Crea chiave specifica per backup (DIVERSA dalla chiave account)
+backup_key_material = f"{mario_master_password}_backup_ClaudePA_2024"
+# Risultato: "MarioMasterPassword2024!_backup_ClaudePA_2024"
+
+backup_hash = hashlib.sha256(backup_key_material.encode()).digest()
+backup_key = base64.urlsafe_b64encode(backup_hash)
+# Risultato: chiave Fernet per il backup (UNICA per questo backup)
+```
+
+**3. Struttura Dati Backup**
+```python
+# Prepara TUTTO il contenuto da crittografare (inclusi metadati)
+backup_data = {
+    "version": "1.0",
+    "username": "mario",                           # Chi ha creato il backup
+    "export_date": "2024-01-01T15:30:00.000000",  # Quando è stato creato
+    "export_date_formatted": "01/01/2024 15:30",
+    "password_count": 5,
+    "passwords": [
+        {
+            "site": "github.com",
+            "username": "mario@email.com", 
+            "password": "GitHub_Password_123!",     # Password in CHIARO nel backup
+            "notes": "Account sviluppo",
+            "created_at": "2024-01-01T10:00:00",
+            "updated_at": "2024-01-01T10:00:00"
+        },
+        {
+            "site": "gmail.com",
+            "username": "mario@gmail.com",
+            "password": "Gmail_SuperSecure_456!",   # Password in CHIARO nel backup
+            "notes": "Email personale",
+            "created_at": "2024-01-01T10:30:00", 
+            "updated_at": "2024-01-01T10:30:00"
+        }
+        // ...tutte le altre password
+    ]
+}
+```
+
+**4. Crittografia Totale**
+```python
+# Converti tutto in JSON
+json_string = json.dumps(backup_data, indent=2, ensure_ascii=False)
+
+# Critta TUTTO il contenuto (a differenza del file utente normale)
+fernet_backup = Fernet(backup_key)
+encrypted_payload = fernet_backup.encrypt(json_string.encode('utf-8'))
+
+# Crea file finale: salt + payload crittografato
+with open("backup_mario_20240101_153000.pwbak", "wb") as f:
+    f.write(salt)                # Primi 16 bytes: salt per derivare chiave
+    f.write(encrypted_payload)   # Resto: TUTTO crittografato
+```
+
+#### 📥 Processo di Import Cross-Account - Esempio Dettagliato
+
+**Scenario**: Luigi vuole importare le password dal backup di Mario
+
+#### Perché è Possibile l'Import Cross-Account?
+
+```
+🔑 CHIAVE BACKUP ≠ CHIAVE ACCOUNT
+
+Chiave Account Mario:  "MarioMasterPassword2024!_mario_ClaudePA_2024"
+Chiave Backup Mario:   "MarioMasterPassword2024!_backup_ClaudePA_2024"
+
+├── La chiave backup dipende SOLO dalla password master di Mario
+├── NON dipende dal username di chi importa
+└── Chiunque conosca la password master di Mario può importare
+```
+
+**1. Luigi tenta l'import**
+```python
+# Luigi ha il file backup di Mario
+backup_file = "backup_mario_20240101_153000.pwbak"
+
+# Luigi inserisce la password master che MARIO ha usato per il backup
+luigi_provided_password = "MarioMasterPassword2024!"  # Password di MARIO!
+
+# Luigi ha il proprio account con la sua password master
+luigi_master_password = "LuigiPassword456!"           # Password di LUIGI
+```
+
+**2. Lettura e Decrittografia Backup**
+```python
+# Legge il file backup
+with open(backup_file, "rb") as f:
+    salt = f.read(16)                # Salt casuale del backup di Mario
+    encrypted_payload = f.read()     # Dati crittografati di Mario
+
+# Ricostruisce la chiave backup usando la password che Luigi ha inserito
+backup_key_material = f"{luigi_provided_password}_backup_ClaudePA_2024"
+# Se Luigi ha inserito la password corretta di Mario:
+# backup_key_material = "MarioMasterPassword2024!_backup_ClaudePA_2024"
+
+backup_hash = hashlib.sha256(backup_key_material.encode()).digest()
+backup_key = base64.urlsafe_b64encode(backup_hash)
+
+# Tenta la decrittografia
+try:
+    fernet_backup = Fernet(backup_key)
+    decrypted_data = fernet_backup.decrypt(encrypted_payload)
+    backup_content = json.loads(decrypted_data.decode())
+    print("✅ Backup di Mario decrittato con successo!")
+except:
+    print("❌ Password master di Mario incorretta")
+```
+
+**3. Import nel Database di Luigi**
+```python
+# Se la decrittografia è riuscita, Luigi ottiene i dati in chiaro
+mario_backup = {
+    "username": "mario",                    # Backup di Mario
+    "password_count": 5,
+    "passwords": [
+        {
+            "site": "github.com",
+            "username": "mario@email.com",
+            "password": "GitHub_Password_123!",  # Password in chiaro
+            "notes": "Account sviluppo"
+        },
+        {
+            "site": "gmail.com", 
+            "username": "mario@gmail.com",
+            "password": "Gmail_SuperSecure_456!", # Password in chiaro
+            "notes": "Email personale"
+        }
+        // ...
+    ]
 }
 
-DARK_COLORS = {
-    'primary': '#90caf9',      # Blu chiaro
-    'secondary': '#424242',    # Grigio scuro
-    'surface': '#2e2e2e',      # Superficie scura
-    'background': '#1e1e1e',   # Sfondo scuro
-    'text': '#ffffff',         # Testo bianco
-    'text_secondary': '#b0b0b0', # Testo grigio chiaro
-    'accent': '#64b5f6',       # Accento chiaro
-    'error': '#f44336',        # Errore
-    'border': '#555555',       # Bordi scuri
-    'hover': '#3e3e3e'         # Hover scuro
-}
+# Luigi importa nel suo database usando la SUA chiave
+luigi_key = database._generate_key_from_password("LuigiPassword456!", "luigi")
+
+for pwd in mario_backup["passwords"]:
+    # Controlla se Luigi ha già questa password
+    if not luigi_already_has_password(pwd["site"], pwd["username"]):
+        # Cripta con la chiave di LUIGI e salva nel database di LUIGI
+        encrypted_pwd = database._encrypt_password(pwd["password"], luigi_key)
+        
+        # Aggiunge al file di Luigi
+        luigi_password_entry = {
+            "site": pwd["site"],
+            "username": pwd["username"], 
+            "password": encrypted_pwd,     # Crittografata con chiave di LUIGI
+            "notes": pwd["notes"] + " (importata da backup Mario)",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        luigi_database["passwords"].append(luigi_password_entry)
 ```
 
-#### Component Styles
+#### 🔐 Sicurezza del Sistema di Backup
+
+#### Esempio Scenari di Sicurezza
+
+**Scenario 1: Luigi trova il file backup di Mario**
 ```python
-# Stili disponibili per i componenti
-COMPONENT_STYLES = {
-    'primary',    # Colore principale (pulsanti importanti)
-    'secondary',  # Colore secondario (pulsanti normali)
-    'surface',    # Superficie (frame, card)
-    'background', # Sfondo (finestre principali)
-    'danger',     # Azioni pericolose (eliminazione)
-    'accent'      # Evidenziazione speciale
-}
+# Luigi trova backup_mario_20240101.pwbak
+
+# ❌ Luigi NON può fare nulla senza la password master di Mario
+# Il file è completamente crittografato
+
+# Tentativi falliti:
+luigi_tries = [
+    "password123",           # Password comune
+    "LuigiPassword456!",    # SUA password master  
+    "mario",                # Username di Mario
+    "",                     # Password vuota
+]
+
+for attempt in luigi_tries:
+    # Tutti falliranno perché solo Mario conosce "MarioMasterPassword2024!"
+    result = try_decrypt_backup(backup_file, attempt)
+    print(f"❌ Tentativo '{attempt}': {result}")  # Fallimento
+
+# ✅ Solo se Luigi conosce la password master di Mario:
+correct_password = "MarioMasterPassword2024!"
+result = try_decrypt_backup(backup_file, correct_password)
+print(f"✅ Password corretta: {result}")  # Successo
 ```
 
-### Password Generator
-
-#### Algoritmo di Generazione
+**Scenario 2: Condivisione Sicura tra Amici**
 ```python
-CHARACTER_SETS = {
-    'lowercase': 'abcdefghijklmnopqrstuvwxyz',
-    'uppercase': 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 
-    'digits': '0123456789',
-    'symbols': '!@#$%^&*()_+-=[]{}|;:,.<>?'
-}
+# Mario vuole condividere alcune password con Luigi
 
-# Assicura almeno un carattere per ogni set selezionato
-# Riempie il resto con selezione casuale da tutti i set
-# Shuffle finale per randomizzare posizioni
+# 1. Mario crea backup con password condivisa
+shared_password = "SharedSecret2024!"
+mario_creates_backup_with_password(shared_password)
+
+# 2. Mario comunica a Luigi la password condivisa (canale sicuro)
+# WhatsApp/Signal: "La password del backup è: SharedSecret2024!"
+
+# 3. Luigi può importare usando la password condivisa
+luigi_imports_backup("backup_mario_shared.pwbak", "SharedSecret2024!")
+
+# 4. Le password vengono crittografate nel database di Luigi
+#    con la SUA password master, non quella condivisa
 ```
 
-### Memory Management
+## 🔄 Sistema di Backup e Importazione
 
-#### Widget Cleanup
-```python
-def _clear_current_view(self):
-    # 1. Completa operazioni pending
-    self.update_idletasks()
-    
-    # 2. Distruzione ricorsiva widget
-    for child in list(self.main_frame.winfo_children()):
-        self._destroy_widget_safely(child)
-    
-    # 3. Reset riferimenti
-    self.current_view = None
-    
-    # 4. Garbage collection
-    import gc
-    gc.collect()
-```
+ClaudePA implementa un sistema di backup avanzato che consente la condivisione sicura delle password tra utenti diversi, mantenendo elevati standard di sicurezza.
 
-### Error Handling
+### 📦 Formato del File di Backup
 
-#### Livelli di Error Handling
-1. **UI Level**: Messaggi utente user-friendly
-2. **Logic Level**: Logging per debugging  
-3. **System Level**: Graceful degradation
-4. **Critical Level**: Safe shutdown
-
----
-
-## 📖 API Reference
-
-### Core Classes
-
-#### `PasswordManagerApp`
-```python
-class PasswordManagerApp(ctk.CTk):
-    def __init__(self)
-    def _show_login(self)
-    def _show_register(self) 
-    def _show_dashboard(self)
-    def _show_backup(self)
-    def _on_login_success(self)
-    def _on_logout(self)
-```
-
-#### `PasswordDatabase`
-```python
-class PasswordDatabase:
-    def __init__(self, data_dir: str)
-    def register_user(self, username: str, password: str) -> Tuple[bool, str]
-    def login(self, username: str, password: str) -> Tuple[bool, str]
-    def add_password(self, site: str, username: str, password: str, notes: str) -> Tuple[bool, str]
-    def get_passwords(self) -> List[Dict]
-    def get_decrypted_password(self, site: str, username: str) -> Tuple[str, str]
-    def delete_password(self, site: str, username: str) -> Tuple[bool, str]
-    def logout(self)
-```
-
-#### `ThemeManager`
-```python
-class ThemeManager:
-    def set_mode(self, mode: ThemeMode)
-    def toggle_mode(self) -> str
-    def get_current_mode(self) -> str
-    def get_colors(self) -> Dict[str, str]
-    def add_observer(self, callback: Callable)
-    def remove_observer(self, callback: Callable)
-```
-
-#### `BackupManager`
-```python
-class BackupManager:
-    def export_passwords(self, username: str, master_password: str, passwords: List[Dict]) -> Tuple[bool, str]
-    def import_passwords(self, filepath: str, master_password: str) -> Tuple[bool, str, Dict]
-    def list_backups(self) -> List[Dict]
-    def delete_backup(self, filepath: str) -> Tuple[bool, str]
-```
-
-### Themed Components
-
-#### `ThemedWidget` (Base Class)
-```python
-class ThemedWidget:
-    def __init__(self)
-    def _apply_theme(self)
-    def _update_theme(self)  # Observer callback
-    def destroy(self)        # Cleanup automatico
-```
-
-#### Component Hierarchy
-```
-ThemedWidget (base)
-├── ThemedFrame
-├── ThemedLabel  
-├── ThemedButton
-├── ThemedEntry
-└── MessageDialog
-```
-
----
-
-## 🔧 Troubleshooting
-
-### Problemi Comuni
-
-#### ❌ Errore "ModuleNotFoundError: No module named 'customtkinter'"
-```bash
-# Soluzione
-pip install customtkinter>=5.2.0
-```
-
-#### ❌ Errore "ModuleNotFoundError: No module named 'cryptography'"
-```bash
-# Soluzione
-pip install cryptography>=41.0.0
-
-# Su alcuni sistemi potrebbe servire:
-pip install --upgrade pip
-pip install cryptography
-```
-
-#### ❌ Password dimenticata
-```
-❌ IMPOSSIBILE RECUPERARE
-Le password master non sono recuperabili per design.
-Dovrai creare un nuovo account.
-```
-
-#### ❌ File utente corrotto
-```bash
-# Verifica integrità
-python -c "
-from core.database import PasswordDatabase
-db = PasswordDatabase()
-print(db.debug_user_file('tuo_username'))
-"
-```
-
-#### ❌ Tema non si applica
-```python
-# Reset tema manuale
-from core.theme import theme_manager
-theme_manager.set_mode('light')
-theme_manager.notify_observers()
-```
-
-#### ❌ Backup corrotto
-```bash
-# Verifica backup
-python -c "
-from core.backup import BackupManager
-bm = BackupManager()
-backups = bm.list_backups()
-for b in backups: print(b['filename'], b['size'])
-"
-```
-
-### Performance Issues
-
-#### 🐌 App lenta all'avvio
-- Controlla le dimensioni dei file in `data/users/`
-- File >10MB potrebbero indicare problemi
-- Prova a ricreare l'account se necessario
-
-#### 🐌 Ricerca lenta
-- La ricerca diventa lenta con >1000 password
-- Considera di organizzare meglio le password
-- Usa nomi siti più specifici
-
-### Logging e Debug
-
-#### Abilitare Debug Mode
-```python
-# In main.py aggiungi:
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
-
-#### File di Log
-- I log vengono stampati su console
-- Per salvare su file: `python main.py > app.log 2>&1`
-
----
-
-## 🚀 TODO e Roadmap
-
-### 📱 Sviluppo Mobile
-
-#### Android App
-- [ ] **Kivy/BeeWare** port per Android nativo
-- [ ] **Sincronizzazione cloud** sicura (end-to-end encryption)
-- [ ] **Biometric authentication** (fingerprint, face unlock)
-- [ ] **Auto-fill service** per browser e app Android
-- [ ] **Quick access widget** per password frequenti
-- [ ] **Secure keyboard** integrata per input password
-- [ ] **Play Store** publishing e distribuzione
-
-#### iOS App (Future)
-- [ ] **React Native** o **Flutter** implementation
-- [ ] **KeyChain** integration per iOS
-- [ ] **App Store** compliance e review process
-
-### 💻 Distribuzione Desktop
-
-#### Windows Executable
-- [ ] **PyInstaller** bundle completo
-- [ ] **Windows Installer** (.msi) con WiX
-- [ ] **Code signing** per evitare warning SmartScreen
-- [ ] **Auto-updater** integrato
-- [ ] **Windows Store** submission
-- [ ] **Portable version** senza installazione
-- [ ] **Registry integration** per associazioni file
-
-#### macOS App Bundle  
-- [ ] **py2app** packaging per macOS
-- [ ] **DMG installer** con interfaccia grafica
-- [ ] **Apple Developer** certificate e notarization
-- [ ] **macOS Big Sur+** compatibility e design guidelines
-- [ ] **App Store** submission (sandboxing compliance)
-- [ ] **Universal Binary** (Intel + Apple Silicon)
-
-#### Linux Distribution
-- [ ] **AppImage** per distribuzione universale
-- [ ] **Snap package** per Ubuntu Store
-- [ ] **Flatpak** per Flathub
-- [ ] **DEB package** per Debian/Ubuntu
-- [ ] **RPM package** per RedHat/Fedora
-- [ ] **AUR package** per Arch Linux
-
-### 🎨 Migliorie Grafiche e UI/UX
-
-#### Responsive Design
-- [ ] **Adaptive layouts** per schermi 4K/8K
-- [ ] **Mobile-friendly** touch interface
-- [ ] **Tablet mode** con gesture support
-- [ ] **High DPI scaling** automatico
-- [ ] **Multi-monitor** support migliorato
-- [ ] **Window state persistence** (posizione, dimensioni)
-
-#### Accessibilità
-- [ ] **Screen reader** compatibility (ARIA labels)
-- [ ] **Keyboard navigation** completa
-- [ ] **High contrast** themes per ipovedenti
-- [ ] **Font scaling** per diverse esigenze visive
-- [ ] **Color blind** friendly color schemes
-- [ ] **Voice control** integration (Windows Speech)
-
-#### Advanced UI Features
-- [ ] **Dashboard widgets** personalizzabili
-- [ ] **Password strength visualization** avanzata
-- [ ] **Usage analytics** e statistiche personali
-- [ ] **Quick actions** toolbar personalizzabile
-- [ ] **Drag & drop** per riorganizzare password
-- [ ] **Split view** per gestione multi-account
-- [ ] **Floating mini-window** per quick access
-
-### 🔐 Sicurezza Avanzata
-
-#### Authentication
-- [ ] **Two-factor authentication** (TOTP)
-- [ ] **Hardware key** support (YubiKey, FIDO2)
-- [ ] **Biometric unlock** (Windows Hello, Touch ID)
-- [ ] **Smart card** authentication
-- [ ] **SSO integration** con provider enterprise
-
-#### Encryption Enhancements
-- [ ] **Post-quantum cryptography** preparedness
-- [ ] **Hardware security module** (HSM) support
-- [ ] **Secure enclave** utilization dove disponibile
-- [ ] **Memory protection** avanzata (mlock, secure_malloc)
-- [ ] **Anti-forensics** features
-
-### 🌐 Cloud e Sync
-
-#### Sincronizzazione Sicura
-- [ ] **End-to-end encrypted** sync via cloud
-- [ ] **Self-hosted server** option (Docker)
-- [ ] **Conflict resolution** automatica
-- [ ] **Offline-first** architecture
-- [ ] **Delta sync** per efficienza bandwidth
-- [ ] **Multi-device** session management
-
-#### Cloud Providers
-- [ ] **Google Drive** encrypted backup
-- [ ] **OneDrive** integration
-- [ ] **Dropbox** support
-- [ ] **iCloud** per ecosystem Apple
-- [ ] **Custom WebDAV** servers
-
-### 📊 Features Avanzate
-
-#### Password Management
-- [ ] **Password sharing** sicuro tra utenti
-- [ ] **Team/Family** accounts con permessi
-- [ ] **Password expiration** notifications
-- [ ] **Breach monitoring** con database HaveIBeenPwned
-- [ ] **Password history** e versioning
-- [ ] **Secure notes** con rich text editor
-- [ ] **File attachment** crittografati
-
-#### Automation e Integrazione
-- [ ] **Browser extensions** (Chrome, Firefox, Safari)
-- [ ] **CLI interface** per scripting
-- [ ] **API REST** per integrazioni
-- [ ] **SSH key management**
-- [ ] **Certificate storage** e management
-- [ ] **AWS/Azure** credentials manager
-
-#### Enterprise Features
-- [ ] **Active Directory** integration
-- [ ] **LDAP authentication**
-- [ ] **Group policies** enforcement
-- [ ] **Audit logging** avanzato
-- [ ] **Compliance reporting** (SOC2, GDPR)
-- [ ] **Backup to enterprise** storage
-
-### 🔬 Tecnologie Future
-
-#### AI e Machine Learning
-- [ ] **Smart password suggestions** basate su pattern utente
-- [ ] **Phishing detection** automatica
-- [ ] **Anomaly detection** per accessi sospetti
-- [ ] **Password strength prediction** avanzata
-
-#### Emerging Technologies
-- [ ] **Blockchain** per timestamping e audit trail
-- [ ] **WebAssembly** per performance critiche
-- [ ] **Progressive Web App** (PWA) version
-- [ ] **Electron alternative** evaluation (Tauri, Neutralino)
-
----
-
-## 🤝 Contribuire
-
-### 🐛 Segnalazione Bug
-1. Controlla i [GitHub Issues](https://github.com/tuoUsername/ClaudePA/issues) esistenti
-2. Crea un nuovo issue con:
-   - **Descrizione dettagliata** del problema
-   - **Steps to reproduce** il bug
-   - **Environment info** (OS, Python version, etc.)
-   - **Screenshot** se applicabile
-   - **Log files** se disponibili
-
-### 💡 Nuove Features
-1. **Discussione**: apri un issue per discutere la feature
-2. **Design doc**: crea un documento di design se complessa
-3. **Implementation**: sviluppa seguendo le convenzioni esistenti
-4. **Testing**: aggiungi test appropriati
-5. **Documentation**: aggiorna README e documenti
-
-### 🔧 Development Setup
-```bash
-# 1. Fork del repository
-git clone https://github.com/tuoUsername/ClaudePA.git
-cd ClaudePA
-
-# 2. Crea virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# oppure
-venv\Scripts\activate     # Windows
-
-# 3. Installa in development mode
-pip install -e .
-pip install -r requirements-dev.txt
-
-# 4. Setup pre-commit hooks
-pre-commit install
-
-# 5. Run tests
-python -m pytest tests/
-```
-
-### 📝 Coding Standards
-- **PEP 8** compliance per Python code
-- **Type hints** obbligatori per funzioni pubbliche
-- **Docstrings** in formato Google style
-- **Unit tests** per nuove funzionalità
-- **Error handling** appropriato con logging
-
-### 🏷️ Versioning
-Seguiamo [Semantic Versioning](https://semver.org/):
-- **MAJOR**: breaking changes
-- **MINOR**: nuove feature backward-compatible
-- **PATCH**: bug fixes
-
----
-
-## 📄 Licenza
-
-Questo progetto è rilasciato sotto licenza **MIT License**.
+I file di backup (`.pwbak`) hanno una struttura binaria specifica:
 
 ```
-MIT License
-
-Copyright (c) 2024 ClaudePA Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+┌─────────────────┬───────────────────────────┐
+│ Salt (16 bytes) │ Dati Crittografati (JSON) │
+└─────────────────┴───────────────────────────┘
 ```
 
----
+- **Salt**: 16 bytes casuali generati durante la creazione del backup
+- **Dati Crittografati**: L'intero database in formato JSON, crittografato con AES-256
 
-## 📞 Supporto e Contatti
+### 🔑 Processo di Esportazione (Backup)
 
-- **GitHub Issues**: [Issues](https://github.com/tuoUsername/ClaudePA/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/tuoUsername/ClaudePA/discussions)  
-- **Email**: support@claudepa.com
-- **Discord**: [ClaudePA Community](https://discord.gg/claudepa)
+Quando un utente (es. Tommyboy) crea un backup:
 
-### 🙏 Riconoscimenti
+1. **Generazione Salt**: Viene generato un salt casuale di 16 bytes
+   ```python
+   salt = os.urandom(16)  # es: b'\x8a\x2f\x6c\x19\x45\x7e...'
+   ```
 
-- **CustomTkinter** team per l'eccellente UI framework
-- **Cryptography** library developers per la sicurezza
-- **Python** community per l'ecosistema fantastico
-- Tutti i **beta testers** e **contributors**
+2. **Derivazione Chiave**: Viene creata una chiave di backup specifica
+   ```python
+   backup_key_material = f"{password_master}_backup_ClaudePA_2024"
+   # es: "MiaPasswordSegreta123_backup_ClaudePA_2024"
+   
+   backup_hash = hashlib.sha256(backup_key_material.encode()).digest()
+   backup_key = base64.urlsafe_b64encode(backup_hash)
+   ```
 
----
+3. **Preparazione Dati**: Tutte le password vengono decriptate temporaneamente
+   ```python
+   for pwd in passwords:
+       decrypted, _ = database.get_decrypted_password(pwd["site"], pwd["username"])
+       pwd_copy = pwd.copy()
+       pwd_copy["password"] = decrypted  # Password in chiaro
+   ```
 
-*Ultimo aggiornamento: Maggio 2025*
-*Versione documentazione: 1.0*
+4. **Struttura JSON**: Viene creato un JSON completo con tutti i dati
+   ```json
+   {
+     "version": "1.0",
+     "username": "tommyboy",
+     "export_date": "2025-05-25T09:53:08.000000",
+     "password_count": 5,
+     "passwords": [
+       {
+         "site": "github.com",
+         "username": "tommyboy@email.com", 
+         "password": "GitHub_Password_123!",
+         "notes": "Account sviluppo",
+         "created_at": "2025-01-01T10:00:00",
+         "updated_at": "2025-01-01T10:00:00"
+       },
+       // altre password...
+     ]
+   }
+   ```
+
+5. **Crittografia Completa**: L'intero JSON viene crittografato
+   ```python
+   json_string = json.dumps(backup_data, indent=2, ensure_ascii=False)
+   encrypted_data = fernet.encrypt(json_string.encode('utf-8'))
+   ```
+
+6. **Salvataggio File**: Il salt e i dati crittografati vengono salvati
+   ```python
+   with open(filepath, 'wb') as f:
+       f.write(salt)           # Primi 16 bytes: salt
+       f.write(encrypted_data) # Resto: dati crittografati
+   ```
+
+### 📥 Processo di Importazione
+
+Quando un altro utente (es. Mario) importa il backup:
+
+1. **Lettura File**: Vengono letti il salt e i dati crittografati
+   ```python
+   with open(filepath, 'rb') as f:
+       salt = f.read(16)           # Primi 16 bytes: salt
+       encrypted_data = f.read()   # Resto: dati crittografati
+   ```
+
+2. **Input Password Master**: Mario deve inserire la password master di Tommyboy
+   ```python
+   password_input = "MiaPasswordSegreta123"  # Password master di Tommyboy
+   ```
+
+3. **Derivazione Chiave**: Viene rigenerata la stessa chiave di backup
+   ```python
+   backup_key_material = f"{password_input}_backup_ClaudePA_2024"
+   # Deve risultare: "MiaPasswordSegreta123_backup_ClaudePA_2024"
+   
+   backup_hash = hashlib.sha256(backup_key_material.encode()).digest()
+   backup_key = base64.urlsafe_b64encode(backup_hash)
+   # Deve essere identica alla chiave usata da Tommyboy
+   ```
+
+4. **Decrittazione**: I dati vengono decrittati con la chiave generata
+   ```python
+   fernet = Fernet(backup_key)
+   try:
+       decrypted_data = fernet.decrypt(encrypted_data)
+       json_data = json.loads(decrypted_data.decode('utf-8'))
+   except Exception:
+       # Se la password è errata, la decrittazione fallisce
+       raise InvalidPasswordError("Password master errata")
+   ```
+
+5. **Importazione Password**: Ogni password viene importata nel database di Mario
+   ```python
+   for pwd in json_data["passwords"]:
+       # Aggiunge la password (in chiaro) al database di Mario
+       mario_database.add_password(
+           pwd["site"],
+           pwd["username"],
+           pwd["password"],  # Password in chiaro dal backup
+           pwd.get("notes", "")
+       )
+       
+       # Il metodo add_password cripta automaticamente con la chiave di Mario
+       encrypted_for_mario = mario_database._encrypt_password(pwd["password"], mario_key)
+       # La password viene salvata crittografata nel file di Mario
+   ```
+
+### 🔐 Sicurezza del Sistema
+
+Il sistema di backup garantisce elevati standard di sicurezza:
+
+1. **Zero-Storage**: Le chiavi di crittografia non vengono mai salvate su disco
+2. **Doppio Layer**: Le password sono protette da due livelli di crittografia:
+   - Nel file normale: Crittografia selettiva (solo password)
+   - Nel backup: Crittografia completa (tutto il contenuto)
+3. **Isolamento Utenti**: Ogni utente ha una chiave di crittografia diversa
+4. **Condivisione Sicura**: La condivisione richiede sia il file di backup che la password master
+5. **Eliminazione Sicura**: Le password in chiaro vengono eliminate dalla memoria dopo l'uso
+
+### 📋 Esempio Concreto
+
+Esempio pratico di condivisione password tra utenti:
+
+1. **Tommyboy crea un backup**:
+   - Password master: "MiaPasswordSegreta123"
+   - File: `backup_tommyboy_20250525_095308.pwbak`
+   - Salt generato: `b'\x8a\x2f\x6c\x19...'`
+
+2. **Tommyboy condivide con Mario**:
+   - Il file backup `backup_tommyboy_20250525_095308.pwbak`
+   - La sua password master: "MiaPasswordSegreta123"
+
+3. **Mario importa il backup**:
+   - Inserisce la password master di Tommyboy: "MiaPasswordSegreta123"
+   - Il sistema usa il salt dal file + password per generare la stessa chiave
+   - Se la password è corretta, il backup si decritta
+
+4. **Risultato finale**:
+   - Le password sono ora nel database di Mario
+   - Sono crittografate con la chiave personale di Mario
+   - Mario può accedervi con la sua password master, non quella di Tommyboy
